@@ -1,2 +1,2 @@
-spotID,plane,x,y,peak,x0,xdev,y0,ydev,ecc,int
-0,9,576,412,741.48,4.85,5.20,4.35,5.23,0.110,14894.35
+spotID,plane,x,y,peak,x0,xdev,y0,ydev,ecc,int,bkgrnd
+0,9,576,412,681.22,8.01,8.76,5.79,6.09,0.719,10499.25,470.56
