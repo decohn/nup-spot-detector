@@ -1,5 +1,13 @@
 %% SingleNupSpotDetector
 % See Github repository for README and more details regarding the project.
+% Immediate term goal: continue optimizing the thresholding algorithm.
+% Check the correlation between bounding box size and total intensity,
+% because I'm reasonably certain that that is a very strong correlation at
+% the moment. Finally, remove coordinates from my list if they are
+% duplicates that point to a spot that is already pointed to.
+
+% On Tuesday my plan is to streak out Nup60, among other things, so that I
+% can make overnights on Thursday and image both haploid Nup60 and haploid PCNA-mNG on Friday.
 
 clc
 clear all
@@ -13,14 +21,14 @@ ebbr = 0;
 % Images used with this program must be stored in the MATLAB home folder.
 % This is easily modifiable if desired.
 
-%% Configuration Variables
-% The plus one is there to adjust for the fact that arrays in
-% MATLAB don't start at the same values as FIJI arrays! 
+%% Configuration Variables 
 
 fileID = fopen([pwd, '/config.txt'],'r');
+
 imageNamePrecursor = fgetl(fileID);
 spacesLocatedAt = find(imageNamePrecursor == ' ');
-imageName = imageNamePrecursor(spacesLocatedAt(2) + 1 : size(imageNamePrecursor, 2));
+imageNames = imageNamePrecursor(spacesLocatedAt(2) + 1 : size(imageNamePrecursor, 2) - 1);
+imageNames = split(imageNames, ",");
 
 outputPrecursor = fgetl(fileID);
 spacesLocatedAt = find(outputPrecursor == ' ');
@@ -39,12 +47,12 @@ while (terminate == false)
         spotCoordinatesPrecursor = string(spotCoordinatesPrecursor);
         spotCoordinates = split(spotCoordinatesPrecursor, ",");
         planeNumber(loopCounter) = double(spotCoordinates(1,1));
+        
+        % The plus one is there to adjust for the fact that arrays in
+        % MATLAB don't start at the same values as FIJI arrays!
         x_coord(loopCounter) = double(spotCoordinates(2,1)) + 1;
         y_coord(loopCounter) = double(spotCoordinates(3,1)) + 1;
-        
-        % for the time being, this is used as a manual way to filter out
-        % coordinates that I know aren't good
-        useThisSpot(loopCounter) = double(spotCoordinates(4,1));
+        imageNumber(loopCounter) = double(spotCoordinates(4,1));
         
         loopCounter = loopCounter + 1;
     else
@@ -59,13 +67,13 @@ usableIntensities = zeros(1,loopCounter);
 % permission, which will delete the previous contents, or with 'a'
 % permission, which will append new text to the previous contents.
 fileID = fopen([pwd, '/', outputFileName,'.csv'],'w');
-fprintf(fileID, '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n', 'spotID', 'plane', 'x', 'y', 'peak', 'x0', 'xdev', 'y0', 'ydev', 'ecc', 'int', 'bkgrnd', 'usable');
+fprintf(fileID, '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n', 'spotID', 'plane', 'x', 'y', 'peak', 'x0', 'xdev', 'y0', 'ydev', 'ecc', 'int', 'bkgrnd', 'usable', 'image number');
 
 %% Spot Identification
 for i=1:(loopCounter-1)
     
-    % Image Read
-    I = imread([pwd , '/', imageName , '.tif'], planeNumber(i));
+    % Image Read. Adjust this to pick the correct image each time!
+    I = imread([pwd , '/', imageNames{imageNumber(i)} , '.tif'], planeNumber(i));
     
     % Scales a copy of the image in order to provide a visual reference. Should
     % only be used during testing. 
@@ -241,7 +249,10 @@ for i=1:(loopCounter-1)
 
     % This more primitive method simply sums up all of the pixel values that
     % exceed the background. Then it subtracts the backgroundIntensity,
-    % multiplied by the number of pixels that exceed the background
+    % multiplied by the number of pixels that exceed the background. Note
+    % that unintIntensity, as a uint16, is capped at 2^16 - 1. This occurs
+    % I think because all of the image values are uint16 type, but this
+    % could cause issues in the future.
     unintIntensity = sum(sum(thresholdedFit .* gaussianFit)) - backgroundIntensity * sum(sum(thresholdedFit));
 
     % plots the centre of the proposed Gaussian (which should be the centre of
@@ -252,9 +263,7 @@ for i=1:(loopCounter-1)
     end
     
     % If a bounding box of the correct size could not be generated, don't use the spot.
-    if(boxIterations == maxBoxIterations)
-        useThisSpot(i) = 0;
-    end
+    useThisSpot(i) = (boxIterations < maxBoxIterations);
     
     if(verbose ~= "none" && useThisSpot(i) == 1)
         figure(5*i-1);
@@ -264,7 +273,7 @@ for i=1:(loopCounter-1)
         heatmap(croppedImage);
     end
 
-    fprintf(fileID, '%u,%u,%u,%u,%5.2f,%3.2f,%3.2f,%3.2f,%3.2f,%3.3f,%5.2f,%5.2f,%1.0f\n', i, planeNumber(i), x_coord(i), y_coord(i), ahat(1), ahat(2), ahat(3), ahat(4), ahat(5), eccentricity, unintIntensity, backgroundIntensity, useThisSpot(i));
+    fprintf(fileID, '%u,%u,%u,%u,%5.2f,%3.2f,%3.2f,%3.2f,%3.2f,%3.3f,%5.2f,%5.2f,%u,%u\n', i, planeNumber(i), x_coord(i), y_coord(i), ahat(1), ahat(2), ahat(3), ahat(4), ahat(5), eccentricity, unintIntensity, backgroundIntensity, useThisSpot(i), imageNumber(i));
        
     if(useThisSpot(i) == 1)
         usableIntensities(i) = unintIntensity;

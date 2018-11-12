@@ -1,4 +1,4 @@
-imageName = Nup59_1s_100%
+imageNames = Nup59_1s_100%,Nup59_1s_100%_2 
 outputFileName = SpotDetectorOutput
 showFigures = none
 9,575,411,1
@@ -28,3 +28,10 @@ showFigures = none
 9,360,418,1
 9,561,428,1
 6,820,839,1
+8,117,228,2
+12,73,1017,2
+9,227,1042,2
+9,224,993,2
+9,303,779,2
+7,472,816,2
+8,1201,490,2
