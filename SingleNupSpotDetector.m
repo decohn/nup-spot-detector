@@ -1,8 +1,8 @@
 %% SingleNupSpotDetector
 % See Github repository for README and more details regarding the project.
 % Immediate term goal: continue optimizing the thresholding algorithm.
-% Check the correlation between bounding box size and total intensity,
-% because I'm reasonably certain that that is a very strong correlation at
+% Check the correlation between bounding box size, background intensity and total intensity,
+% because I'm reasonably certain that those are very strong correlations at
 % the moment. Finally, remove coordinates from my list if they are
 % duplicates that point to a spot that is already pointed to.
 
@@ -67,7 +67,7 @@ usableIntensities = zeros(1,loopCounter);
 % permission, which will delete the previous contents, or with 'a'
 % permission, which will append new text to the previous contents.
 fileID = fopen([pwd, '/', outputFileName,'.csv'],'w');
-fprintf(fileID, '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n', 'spotID', 'plane', 'x', 'y', 'peak', 'x0', 'xdev', 'y0', 'ydev', 'ecc', 'int', 'bkgrnd', 'usable', 'image number');
+fprintf(fileID, '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n', 'spotID', 'plane', 'x', 'y', 'peak', 'x0', 'xdev', 'y0', 'ydev', 'ecc', 'int', 'bkgrnd', 'usable', 'image number', 'bounding box area');
 
 %% Spot Identification
 for i=1:(loopCounter-1)
@@ -140,11 +140,11 @@ for i=1:(loopCounter-1)
         
         if(sum(sum(BWOI)) > 0)
             object_data = regionprops(BWOI, I, {'BoundingBox'});
-            data_array = table2array(struct2table(object_data));
-            data_array(1) = cast(data_array(1), 'uint16');
-            data_array(2) = cast(data_array(2), 'uint16');
+            boundingBoxData = table2array(struct2table(object_data));
+            boundingBoxData(1) = cast(boundingBoxData(1), 'uint16');
+            boundingBoxData(2) = cast(boundingBoxData(2), 'uint16');
         
-            currentBoxArea = data_array(3) * data_array(4);
+            currentBoxArea = boundingBoxData(3) * boundingBoxData(4);
         else
             currentBoxArea = 0;
         end
@@ -164,7 +164,7 @@ for i=1:(loopCounter-1)
         plot(x_coord(i), y_coord(i), 'Marker', 'o', 'LineStyle', 'none', 'MarkerSize', 20);
     end
     
-    croppedImage = I((data_array(2) - ebbr) : (data_array(2) + data_array(4) - 1 + ebbr), (data_array(1) - ebbr) : (data_array(1) + data_array(3) - 1 + ebbr));
+    croppedImage = I((boundingBoxData(2) - ebbr) : (boundingBoxData(2) + boundingBoxData(4) - 1 + ebbr), (boundingBoxData(1) - ebbr) : (boundingBoxData(1) + boundingBoxData(3) - 1 + ebbr));
     
     if(verbose == "very")
         figure(5*i-2)
@@ -175,63 +175,50 @@ for i=1:(loopCounter-1)
 
     doubleCroppedImage = cast(croppedImage, 'double');
 
-    % computes the background intensity as the average of the four corners just
-    % outside of the bounding box. probably respectably accurate, but could
-    % certainly be improved further.
-    % fourCorners = [I(data_array(2) - 1, data_array(1) - 1), I(data_array(2) - 1, data_array(1) + data_array(3)), I(data_array(2) + data_array(4), data_array(1) - 1), I(data_array(2) + data_array(4), data_array(3) + data_array(1))];
-    % backgroundIntensity = mean(fourCorners);
-
-    % Instead, I chose to compute intensity by taking the average intensity of
-    % every pixel that is inside the bounding box but NOT inside the spot. It
-    % may later turn out to be better to use something like the mean of this
-    % value and the minimum intensity inside the bounding box. 
-    
-    % On my thid attempt now to compute the background intensity, I'm going
+    % On my third attempt now to compute the background intensity, I'm going
     % to try to take the minimum pixel value that is inside the bounding
     % box but not inside the spot, and use that instead.
 
-    binaryCroppedImage = BWOI((data_array(2) - ebbr) : (data_array(2) + data_array(4) - 1 + ebbr), (data_array(1) - ebbr) : (data_array(1) + data_array(3) - 1 + ebbr));
-    backgroundRegion = cast(~binaryCroppedImage, 'uint16');
+    %binaryCroppedImage = BWOI((data_array(2) - ebbr) : (data_array(2) + data_array(4) - 1 + ebbr), (data_array(1) - ebbr) : (data_array(1) + data_array(3) - 1 + ebbr));
+    %backgroundRegion = cast(~binaryCroppedImage, 'uint16');
     % backgroundIntensity = sum(sum(backgroundRegion .* croppedImage)) / sum(sum(backgroundRegion));
-    greyscaleBackgroundRegion = backgroundRegion .* croppedImage;
-    backgroundIntensity = min(min(greyscaleBackgroundRegion(greyscaleBackgroundRegion ~= 0)));
+    %greyscaleBackgroundRegion = backgroundRegion .* croppedImage;
+    %backgroundIntensity = min(min(greyscaleBackgroundRegion(greyscaleBackgroundRegion ~= 0)));
 
     %% Fit Cropped Image to 2D Gaussian Curve
-    xdata = zeros(2, data_array(3) * data_array(4));
+    xdata = zeros(2, boundingBoxData(3) * boundingBoxData(4));
 
-    for j=1:(data_array(3)*data_array(4))
-        if(rem(j, data_array(4)) ~= 0)
-            xdata(1, j) = rem(j, data_array(4));
+    for j=1:(boundingBoxData(3)*boundingBoxData(4))
+        if(rem(j, boundingBoxData(4)) ~= 0)
+            xdata(1, j) = rem(j, boundingBoxData(4));
         else
-            xdata(1, j) = data_array(4);
+            xdata(1, j) = boundingBoxData(4);
         end
     end
 
-    for j=1:data_array(3)
-        xdata(2, (data_array(4) * j - (data_array(4) - 1)) : (data_array(4) * j)) = j;
+    for j=1:boundingBoxData(3)
+        xdata(2, (boundingBoxData(4) * j - (boundingBoxData(4) - 1)) : (boundingBoxData(4) * j)) = j;
     end
 
-    % I'm still a bit sketched out here and concerned that the dimensions might
-    % be going in the wrong order. Hopefully that isn't the case. I think they
-    % are in the wrong order... there's something sketchy going on with the
-    % fit.
-    ydata = reshape(doubleCroppedImage, [1, ((data_array(3) + 2 * ebbr) * (2 * ebbr + data_array(4)))]);
+    ydata = reshape(doubleCroppedImage, [1, ((boundingBoxData(3) + 2 * ebbr) * (2 * ebbr + boundingBoxData(4)))]);
 
     % predicted is an anonymous fitting function that lsqcurvefit will fit the
-    % data to. a will be a vector with five elements: the amplitude, the x shift, the x
-    % standard deviation, the y shift, and the y standard deviation. 
+    % data to. a will be a vector with six elements: the amplitude, the x shift, the x
+    % standard deviation, the y shift, the y standard deviation, and the background value. 
 
-    predicted = @(a, xdata) a(1) * exp(-((xdata(1, :) - a(2)).^2 / (2 * (a(3).^2))) - ((xdata(2, :) - a(4)).^2) / (2 * (a(5).^2)));
+    predicted = @(a, xdata) a(1) * exp(-((xdata(1, :) - a(2)).^2 / (2 * (a(3).^2))) - ((xdata(2, :) - a(4)).^2) / (2 * (a(5).^2))) + a(6);
 
-    % a0 is the first estimate of parameters that the lsqcurvefit will use
-    a0 = [double(I(y_coord(i), x_coord(i))); 0; 4; 0; 4];
+    % a0 is the first estimate of parameters that the lsqcurvefit will use.
+    % Refine this?
+    a0 = [double(I(y_coord(i), x_coord(i)) - 300); 4; 4; 4; 4; 300];
 
     % Performs the curve fitting.
     opts = optimset('Display','off');
     [ahat, resnorm, residual, exitflag, output, lambda, jacobian] = lsqcurvefit(predicted, a0, xdata, ydata, [], [], opts);
-
+    backgroundIntensity = ahat(6);
+    
     % The final fitted Gaussian function. Can be used for the integration.
-    gaussianFit = reshape(predicted(ahat, xdata), [data_array(4), data_array(3)]);
+    gaussianFit = reshape(predicted(ahat, xdata), [boundingBoxData(4), boundingBoxData(3)]);
     thresholdedFit = imbinarize(gaussianFit, backgroundIntensity);
 
     %% Compute Properties of the 2D Gaussian Fit
@@ -273,7 +260,7 @@ for i=1:(loopCounter-1)
         heatmap(croppedImage);
     end
 
-    fprintf(fileID, '%u,%u,%u,%u,%5.2f,%3.2f,%3.2f,%3.2f,%3.2f,%3.3f,%5.2f,%5.2f,%u,%u\n', i, planeNumber(i), x_coord(i), y_coord(i), ahat(1), ahat(2), ahat(3), ahat(4), ahat(5), eccentricity, unintIntensity, backgroundIntensity, useThisSpot(i), imageNumber(i));
+    fprintf(fileID, '%u,%u,%u,%u,%5.2f,%3.2f,%3.2f,%3.2f,%3.2f,%3.3f,%5.2f,%5.2f,%u,%u,%u,\n', i, planeNumber(i), x_coord(i), y_coord(i), ahat(1), ahat(2), ahat(3), ahat(4), ahat(5), eccentricity, unintIntensity, backgroundIntensity, useThisSpot(i), imageNumber(i), boundingBoxData(3) * boundingBoxData(4));
        
     if(useThisSpot(i) == 1)
         usableIntensities(i) = unintIntensity;
