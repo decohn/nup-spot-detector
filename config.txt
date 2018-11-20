@@ -1,6 +1,7 @@
-imageNames = Nup59_1s_100%,Nup59_1s_100%_2 
+imageNames = Nup59_1s_100%,Nup59_1s_100%_2
 outputFileName = SpotDetectorOutput
 showFigures = none
+boundingBoxAreaRange = 36,100
 9,575,411,1
 9,925,607,1
 9,1032,545,1
