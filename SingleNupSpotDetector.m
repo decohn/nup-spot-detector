@@ -252,6 +252,12 @@ for i=1:(loopCounter-1)
     % If a bounding box of the correct size could not be generated, don't use the spot.
     useThisSpot(i) = (boxIterations < maxBoxIterations);
     
+    % Sanity check to take out any super-extreme outliers (just so that the
+    % histogram looks nice).
+    if(unintIntensity > 100000)
+        useThisSpot(i) = 0;
+    end
+    
     if(verbose ~= "none" && useThisSpot(i) == 1)
         figure(5*i-1);
         heatmap(gaussianFit);
@@ -273,7 +279,10 @@ fclose(fileID);
 usableIntensities(usableIntensities == 0) = [];
 
 figure(5*i+1)
-histogram(usableIntensities, 10);
+histogram(usableIntensities, 15, 'FaceColor', 'g');
+title('Integrated Intensity Histogram');
+xlabel('Integrated Intensity');
+ylabel('Count of Spots');
 
 figure(5*i+2)
 scatter(1:size(usableIntensities, 2), usableIntensities);
