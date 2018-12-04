@@ -1,0 +1,5 @@
+imageNames = Nup60_1s_100%,Nup60_1s_100%_2,Nup60_1s_100%_3,Nup60_1s_100%_4
+outputFileName = SpotDetectorOutput
+showFigures = very
+boundingBoxAreaRange = 16,36
+11,190,217,1
