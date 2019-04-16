@@ -19,7 +19,9 @@ IV. **Other References**
 
 	a. Project Proposal (October 15, 2018)
 	b. Lab Meeting Slides (November 15, 2018)
-	c. Final Project Report (December ??, 2018)
+	c. Interim Project Report (December 4, 2018)
+	d. Lab Meeting Slides (February 27, 2019)
+	e. Final Lab Meeting Slides (April 18, 2019)
 	
 V. **Authorship and Acknowledgements**
 
